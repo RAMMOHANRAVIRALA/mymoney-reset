@@ -1,0 +1,96 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Money - Reset Password</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#1b1a16;color:#fff;font-family:Arial,sans-serif;padding:20px}
+.card{width:100%;max-width:390px;background:#292823;padding:28px;border-radius:20px;text-align:center}
+h1{color:#f2b705}
+input,button{width:100%;padding:15px;border-radius:12px;font-size:16px;margin-top:12px}
+input{background:#383730;color:white;border:1px solid #666}
+button{background:#f2b705;color:#222;border:0;font-weight:bold}
+button:disabled{opacity:.5}
+#msg{margin-top:16px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>My Money</h1>
+<h2>Reset Password</h2>
+<p>Enter your new password.</p>
+<form id="form">
+<input id="password" type="password"
+ placeholder="New password" minlength="8"
+ autocomplete="new-password" required>
+<input id="confirm" type="password"
+ placeholder="Confirm password" minlength="8"
+ autocomplete="new-password" required>
+<button id="save" type="submit" disabled>
+Change Password
+</button>
+</form>
+<p id="msg">Verifying reset link...</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+const client = window.supabase.createClient(
+ "https://oxqluaftzzikazznhiuy.supabase.co",
+ "sb_publishable_W_-7L0hghKij23F4W_RqXg_cLHpruBq",
+ {auth:{detectSessionInUrl:true,persistSession:false}}
+);
+const msg=document.getElementById("msg");
+const save=document.getElementById("save");
+let recovery=false;
+
+client.auth.onAuthStateChange((event)=>{
+ if(event==="PASSWORD_RECOVERY"){
+   recovery=true;
+   save.disabled=false;
+   msg.textContent="Enter your new password.";
+ }
+});
+
+async function checkRecovery(){
+ const {data,error}=await client.auth.getSession();
+ if(error){msg.textContent=error.message;return;}
+ if(data.session &&
+   (location.hash.includes("type=recovery") ||
+    location.search.includes("code="))){
+   recovery=true;
+   save.disabled=false;
+   msg.textContent="Enter your new password.";
+ }else if(!recovery){
+   msg.textContent="Open a valid password reset link from your email.";
+ }
+}
+setTimeout(checkRecovery,1200);
+
+document.getElementById("form").onsubmit=async(e)=>{
+ e.preventDefault();
+ if(!recovery)return;
+ const p=document.getElementById("password").value;
+ const c=document.getElementById("confirm").value;
+ if(p!==c){
+   msg.textContent="Passwords do not match.";
+   return;
+ }
+ save.disabled=true;
+ msg.textContent="Updating password...";
+ const {error}=await client.auth.updateUser({password:p});
+ if(error){
+   msg.textContent=error.message;
+   save.disabled=false;
+ }else{
+   msg.textContent="Password changed successfully! Open My Money and sign in.";
+   document.getElementById("form").hidden=true;
+   await client.auth.signOut();
+ }
+};
+</script>
+</body>
+</html>
